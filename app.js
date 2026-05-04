@@ -12,6 +12,14 @@ const summary = document.getElementById("summary");
 const chart = document.getElementById("chart");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((error) => {
+      console.warn("Service worker registration failed:", error);
+    });
+  });
+}
+
 function nowForDateTimeInput() {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
