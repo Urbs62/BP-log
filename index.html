@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BP Log</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <h1>BP Log</h1>
+        <p>Logga blodtryck och puls enkelt.</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Ny mätning</h2>
+
+      <form id="bpForm">
+        <div class="grid">
+          <label>
+            Övertryck
+            <input id="systolic" type="number" inputmode="numeric" min="50" max="260" placeholder="t.ex. 125" required />
+          </label>
+
+          <label>
+            Undertryck
+            <input id="diastolic" type="number" inputmode="numeric" min="30" max="160" placeholder="t.ex. 78" required />
+          </label>
+
+          <label>
+            Puls
+            <input id="pulse" type="number" inputmode="numeric" min="30" max="220" placeholder="t.ex. 64" required />
+          </label>
+
+          <label>
+            Tidpunkt
+            <input id="measuredAt" type="datetime-local" required />
+          </label>
+        </div>
+
+        <label>
+          Kommentar
+          <input id="note" type="text" placeholder="t.ex. morgon, kväll, efter promenad" />
+        </label>
+
+        <div id="liveResult" class="result muted">
+          Fyll i värden för bedömning.
+        </div>
+
+        <button type="submit">Spara mätning</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="sectionHeader">
+        <h2>Historik</h2>
+        <button id="clearAllBtn" class="secondary" type="button">Rensa allt</button>
+      </div>
+
+      <div id="summary" class="summary"></div>
+      <div id="historyList" class="history"></div>
+    </section>
+
+    <section class="card">
+      <h2>Diagram</h2>
+      <p class="muted">En enkel SVG-kurva för övertryck, undertryck och puls.</p>
+      <div id="chart" class="chart"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
