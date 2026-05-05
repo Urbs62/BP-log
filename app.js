@@ -11,6 +11,7 @@ const historyList = document.getElementById("historyList");
 const summary = document.getElementById("summary");
 const chart = document.getElementById("chart");
 const clearAllBtn = document.getElementById("clearAllBtn");
+let bpChart;
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -156,51 +157,141 @@ function renderHistory(entries) {
     .join("");
 }
 
-function scale(value, min, max, height) {
-  if (max === min) return height / 2;
-  return height - ((value - min) / (max - min)) * height;
-}
-
-function pointsFor(entries, field, min, max, width, height) {
-  if (entries.length === 1) {
-    return `${width / 2},${scale(entries[0][field], min, max, height)}`;
+function resetChart() {
+  if (bpChart) {
+    bpChart.destroy();
+    bpChart = null;
   }
-
-  return entries
-    .map((entry, index) => {
-      const x = (index / (entries.length - 1)) * width;
-      const y = scale(entry[field], min, max, height);
-      return `${x},${y}`;
-    })
-    .join(" ");
 }
 
 function renderChart(entries) {
-  if (entries.length === 0) {
-    chart.innerHTML = `<p class="muted">Diagram visas när du har sparat mätningar.</p>`;
+  resetChart();
+
+  if (typeof Chart === "undefined") {
+    chart.innerHTML = `<p class="muted">Diagrammet kunde inte laddas just nu.</p>`;
     return;
   }
 
+  if (entries.length === 0) {
+    chart.innerHTML = `
+      <canvas id="bpChart" aria-label="Blodtryck och puls över tid" role="img"></canvas>
+      <p class="muted chartEmpty">Diagram visas när du har sparat mätningar.</p>
+    `;
+    return;
+  }
+
+  chart.innerHTML = `<canvas id="bpChart" aria-label="Blodtryck och puls över tid" role="img"></canvas>`;
+  const canvas = document.getElementById("bpChart");
   const sorted = [...entries].sort((a, b) => new Date(a.measuredAt) - new Date(b.measuredAt));
-  const values = sorted.flatMap((e) => [e.systolic, e.diastolic, e.pulse]);
-  const min = Math.min(...values) - 10;
-  const max = Math.max(...values) + 10;
+  const labels = sorted.map((entry) => formatDateTime(entry.measuredAt));
+  const hasFewMeasurements = sorted.length <= 5;
+  const allValues = sorted.flatMap((entry) => [entry.systolic, entry.diastolic, entry.pulse]);
+  const minValue = Math.min(...allValues);
+  const maxValue = Math.max(...allValues);
+  const valueSpan = Math.max(10, maxValue - minValue);
 
-  const width = 320;
-  const height = 180;
-
-  chart.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Blodtryck och puls över tid">
-      <polyline class="line sys" points="${pointsFor(sorted, "systolic", min, max, width, height)}" />
-      <polyline class="line dia" points="${pointsFor(sorted, "diastolic", min, max, width, height)}" />
-      <polyline class="line pulse" points="${pointsFor(sorted, "pulse", min, max, width, height)}" />
-    </svg>
-    <div class="legend">
-      <span><i class="sys"></i>Övertryck</span>
-      <span><i class="dia"></i>Undertryck</span>
-      <span><i class="pulse"></i>Puls</span>
-    </div>
-  `;
+  bpChart = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Övertryck",
+          data: sorted.map((entry) => entry.systolic),
+          borderColor: "#dc2626",
+          backgroundColor: "#dc2626",
+          tension: 0.3
+        },
+        {
+          label: "Undertryck",
+          data: sorted.map((entry) => entry.diastolic),
+          borderColor: "#2563eb",
+          backgroundColor: "#2563eb",
+          tension: 0.3
+        },
+        {
+          label: "Puls",
+          data: sorted.map((entry) => entry.pulse),
+          borderColor: "#16a34a",
+          backgroundColor: "#16a34a",
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: "index"
+      },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            color: "#667085",
+            usePointStyle: true
+          }
+        },
+        tooltip: {
+          enabled: true,
+          callbacks: {
+            title: (items) => items[0]?.label || ""
+          }
+        }
+      },
+      layout: {
+        padding: {
+          top: 8,
+          right: 12,
+          bottom: 8,
+          left: 8
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          offset: hasFewMeasurements,
+          ticks: {
+            autoSkip: !hasFewMeasurements,
+            maxTicksLimit: hasFewMeasurements ? 5 : 8,
+            maxRotation: 0,
+            minRotation: 0,
+            color: "#667085"
+          },
+          grid: {
+            display: true,
+            color: "#e6ebf3"
+          }
+        },
+        y: {
+          display: true,
+          beginAtZero: false,
+          suggestedMin: minValue - valueSpan * 0.15,
+          suggestedMax: maxValue + valueSpan * 0.15,
+          ticks: {
+            precision: 0,
+            color: "#667085"
+          },
+          grid: {
+            color: "#e6ebf3"
+          }
+        }
+      },
+      elements: {
+        line: {
+          borderWidth: 3
+        },
+        point: {
+          hitRadius: 14,
+          hoverRadius: 6,
+          radius: hasFewMeasurements ? 5 : 4
+        }
+      }
+    }
+  });
 }
 
 function render() {
