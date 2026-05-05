@@ -412,8 +412,12 @@ function notifyMissingMeasurement() {
   const message = "Påminnelse: Ingen blodtrycksmätning är loggad idag.";
 
   if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-    new Notification(message);
-    return;
+    try {
+      new Notification(message);
+      return;
+    } catch (error) {
+      console.warn("Notification could not be shown, using alert fallback instead.", error);
+    }
   }
 
   alert(message);
