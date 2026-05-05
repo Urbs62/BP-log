@@ -1,4 +1,7 @@
 const STORAGE_KEY = "bp_log_entries_v1";
+const REMINDER_LAST_CHECKED_KEY = "bp_log_reminder_last_checked_v1";
+const REMINDER_TIME = { hour: 16, minute: 0 };
+const REMINDER_TIME_ZONE = "Europe/Stockholm";
 
 const form = document.getElementById("bpForm");
 const systolicInput = document.getElementById("systolic");
@@ -302,6 +305,7 @@ function render() {
 }
 
 form.addEventListener("submit", (event) => {
+  requestNotificationPermission();
   event.preventDefault();
 
   const values = getInputValues();
@@ -322,6 +326,15 @@ form.addEventListener("submit", (event) => {
   render();
 });
 
+function requestNotificationPermission() {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission !== "default") return;
+
+  Notification.requestPermission().catch(() => {
+    // Ignore permission errors; alert fallback is used.
+  });
+}
+
 historyList.addEventListener("click", (event) => {
   const button = event.target.closest(".deleteBtn");
   if (!button) return;
@@ -332,6 +345,7 @@ historyList.addEventListener("click", (event) => {
 });
 
 clearAllBtn.addEventListener("click", () => {
+  requestNotificationPermission();
   if (!confirm("Vill du rensa alla sparade mätningar?")) return;
   saveEntries([]);
   render();
@@ -343,3 +357,85 @@ clearAllBtn.addEventListener("click", () => {
 
 measuredAtInput.value = nowForDateTimeInput();
 render();
+startDailyReminder();
+
+function getSwedishDateTimeParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: REMINDER_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return {
+    dateKey: `${parts.year}-${parts.month}-${parts.day}`,
+    hour: Number(parts.hour),
+    minute: Number(parts.minute)
+  };
+}
+
+function playReminderSound() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+
+  const context = new AudioContextClass();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = 880;
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.25, context.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.6);
+
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.65);
+  oscillator.onended = () => context.close();
+}
+
+function hasMeasurementForSwedishDate(dateKey) {
+  return loadEntries().some((entry) => getSwedishDateTimeParts(new Date(entry.measuredAt)).dateKey === dateKey);
+}
+
+function notifyMissingMeasurement() {
+  const message = "Påminnelse: Ingen blodtrycksmätning är loggad idag.";
+
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    new Notification(message);
+    return;
+  }
+
+  alert(message);
+}
+
+function checkDailyReminder() {
+  const { dateKey, hour, minute } = getSwedishDateTimeParts();
+  const alreadyChecked = localStorage.getItem(REMINDER_LAST_CHECKED_KEY) === dateKey;
+
+  if (alreadyChecked) return;
+
+  if (hour > REMINDER_TIME.hour || (hour === REMINDER_TIME.hour && minute >= REMINDER_TIME.minute)) {
+    if (!hasMeasurementForSwedishDate(dateKey)) {
+      playReminderSound();
+      notifyMissingMeasurement();
+    }
+
+    localStorage.setItem(REMINDER_LAST_CHECKED_KEY, dateKey);
+  }
+}
+
+function startDailyReminder() {
+  checkDailyReminder();
+  setInterval(checkDailyReminder, 30000);
+}

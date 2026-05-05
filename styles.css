@@ -267,3 +267,10 @@ button:hover {
     height: 240px !important;
   }
 }
+
+
+.appVersion {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #667085;
+}
