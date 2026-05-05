@@ -1,6 +1,5 @@
 const STORAGE_KEY = "bp_log_entries_v1";
 const REMINDER_LAST_CHECKED_KEY = "bp_log_reminder_last_checked_v1";
-const REMINDER_LAST_PLAYED_KEY = "bp_log_reminder_last_played_v1";
 const REMINDER_TIME = { hour: 16, minute: 0 };
 const REMINDER_TIME_ZONE = "Europe/Stockholm";
 
