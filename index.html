@@ -76,11 +76,14 @@
 
     <section class="card">
       <h2>Diagram</h2>
-      <p class="muted">En enkel SVG-kurva för övertryck, undertryck och puls.</p>
-      <div id="chart" class="chart"></div>
+      <p class="muted">Interaktivt diagram för övertryck, undertryck och puls.</p>
+      <div id="chart" class="chart">
+        <canvas id="bpChart" aria-label="Blodtryck och puls över tid" role="img"></canvas>
+      </div>
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
