@@ -1,4 +1,5 @@
 const STORAGE_KEY = "bp_log_entries_v1";
+const REMINDER_LAST_CHECKED_KEY = "bp_log_reminder_last_checked_v1";
 const REMINDER_LAST_PLAYED_KEY = "bp_log_reminder_last_played_v1";
 const REMINDER_TIME = { hour: 16, minute: 0 };
 const REMINDER_TIME_ZONE = "Europe/Stockholm";
@@ -305,6 +306,7 @@ function render() {
 }
 
 form.addEventListener("submit", (event) => {
+  requestNotificationPermission();
   event.preventDefault();
 
   const values = getInputValues();
@@ -325,6 +327,15 @@ form.addEventListener("submit", (event) => {
   render();
 });
 
+function requestNotificationPermission() {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission !== "default") return;
+
+  Notification.requestPermission().catch(() => {
+    // Ignore permission errors; alert fallback is used.
+  });
+}
+
 historyList.addEventListener("click", (event) => {
   const button = event.target.closest(".deleteBtn");
   if (!button) return;
@@ -335,6 +346,7 @@ historyList.addEventListener("click", (event) => {
 });
 
 clearAllBtn.addEventListener("click", () => {
+  requestNotificationPermission();
   if (!confirm("Vill du rensa alla sparade mätningar?")) return;
   saveEntries([]);
   render();
@@ -393,15 +405,34 @@ function playReminderSound() {
   oscillator.onended = () => context.close();
 }
 
+function hasMeasurementForSwedishDate(dateKey) {
+  return loadEntries().some((entry) => getSwedishDateTimeParts(new Date(entry.measuredAt)).dateKey === dateKey);
+}
+
+function notifyMissingMeasurement() {
+  const message = "Påminnelse: Ingen blodtrycksmätning är loggad idag.";
+
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    new Notification(message);
+    return;
+  }
+
+  alert(message);
+}
+
 function checkDailyReminder() {
   const { dateKey, hour, minute } = getSwedishDateTimeParts();
-  const alreadyPlayed = localStorage.getItem(REMINDER_LAST_PLAYED_KEY) === dateKey;
+  const alreadyChecked = localStorage.getItem(REMINDER_LAST_CHECKED_KEY) === dateKey;
 
-  if (alreadyPlayed) return;
+  if (alreadyChecked) return;
 
   if (hour > REMINDER_TIME.hour || (hour === REMINDER_TIME.hour && minute >= REMINDER_TIME.minute)) {
-    playReminderSound();
-    localStorage.setItem(REMINDER_LAST_PLAYED_KEY, dateKey);
+    if (!hasMeasurementForSwedishDate(dateKey)) {
+      playReminderSound();
+      notifyMissingMeasurement();
+    }
+
+    localStorage.setItem(REMINDER_LAST_CHECKED_KEY, dateKey);
   }
 }
 
