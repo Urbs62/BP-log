@@ -224,59 +224,22 @@ button:hover {
 }
 
 .chart {
-  overflow-x: auto;
-}
-
-svg {
+  position: relative;
   width: 100%;
-  max-width: 760px;
-  min-height: 220px;
+  min-height: 300px;
   background: #f8fafc;
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 12px;
+  padding: 14px;
 }
 
-.line {
-  fill: none;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.chart canvas {
+  width: 100% !important;
+  height: 290px !important;
 }
 
-.line.sys,
-.legend .sys {
-  stroke: #dc2626;
-  background: #dc2626;
-}
-
-.line.dia,
-.legend .dia {
-  stroke: #2563eb;
-  background: #2563eb;
-}
-
-.line.pulse,
-.legend .pulse {
-  stroke: #16a34a;
-  background: #16a34a;
-}
-
-.legend {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-  color: var(--muted);
-}
-
-.legend i {
-  display: inline-block;
-  width: 14px;
-  height: 4px;
-  border-radius: 999px;
-  margin-right: 6px;
-  vertical-align: middle;
+.chartEmpty {
+  margin: 12px 0 0;
 }
 
 @media (max-width: 700px) {
@@ -293,5 +256,14 @@ svg {
 
   button {
     width: 100%;
+  }
+
+  .chart {
+    min-height: 260px;
+    padding: 12px;
+  }
+
+  .chart canvas {
+    height: 240px !important;
   }
 }
