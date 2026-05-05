@@ -2,6 +2,8 @@ const STORAGE_KEY = "bp_log_entries_v1";
 const REMINDER_LAST_CHECKED_KEY = "bp_log_reminder_last_checked_v1";
 const REMINDER_TIME = { hour: 16, minute: 0 };
 const REMINDER_TIME_ZONE = "Europe/Stockholm";
+// Bump this version on each deployment to trigger service worker/cache updates.
+const APP_VERSION = "1.1.0";
 
 const form = document.getElementById("bpForm");
 const systolicInput = document.getElementById("systolic");
@@ -14,15 +16,24 @@ const historyList = document.getElementById("historyList");
 const summary = document.getElementById("summary");
 const chart = document.getElementById("chart");
 const clearAllBtn = document.getElementById("clearAllBtn");
+const appVersion = document.getElementById("appVersion");
 let bpChart;
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch((error) => {
+    navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(APP_VERSION)}`, {
+      updateViaCache: "none"
+    }).catch((error) => {
       console.warn("Service worker registration failed:", error);
     });
   });
 }
+
+if (appVersion) {
+  appVersion.textContent = `v${APP_VERSION}`;
+}
+
+console.info(`BP Log version ${APP_VERSION}`);
 
 function nowForDateTimeInput() {
   const now = new Date();
