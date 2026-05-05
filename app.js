@@ -3,7 +3,9 @@ const REMINDER_LAST_CHECKED_KEY = "bp_log_reminder_last_checked_v1";
 const REMINDER_TIME = { hour: 16, minute: 0 };
 const REMINDER_TIME_ZONE = "Europe/Stockholm";
 // Bump this version on each deployment to trigger service worker/cache updates.
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
+const BACKUP_SCHEMA_VERSION = 1;
+const APP_NAME = "BP Log";
 
 const form = document.getElementById("bpForm");
 const systolicInput = document.getElementById("systolic");
@@ -17,6 +19,9 @@ const summary = document.getElementById("summary");
 const chart = document.getElementById("chart");
 const clearAllBtn = document.getElementById("clearAllBtn");
 const appVersion = document.getElementById("appVersion");
+const exportBackupBtn = document.getElementById("exportBackupBtn");
+const importBackupInput = document.getElementById("importBackupInput");
+const backupMessage = document.getElementById("backupMessage");
 let bpChart;
 
 if ("serviceWorker" in navigator) {
@@ -51,6 +56,108 @@ function loadEntries() {
 
 function saveEntries(entries) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function showBackupMessage(message, type = "muted") {
+  if (!backupMessage) return;
+  backupMessage.className = `backupMessage ${type}`;
+  backupMessage.textContent = message;
+}
+
+function getBackupPayload(entries) {
+  return {
+    app: APP_NAME,
+    schema: BACKUP_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    version: APP_VERSION,
+    data: {
+      measurements: entries
+    }
+  };
+}
+
+function exportBackup() {
+  const payload = getBackupPayload(loadEntries());
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `bp-log-backup-${timestamp}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showBackupMessage("Backup exporterad.", "success");
+}
+
+function validateImportedBackup(payload) {
+  if (!payload || typeof payload !== "object") {
+    return { valid: false, message: "Ogiltig backup: fel format." };
+  }
+
+  if (payload.app !== APP_NAME || payload.schema !== BACKUP_SCHEMA_VERSION) {
+    return { valid: false, message: "Ogiltig backup: app eller schema stöds inte." };
+  }
+
+  const measurements = payload?.data?.measurements;
+  if (!Array.isArray(measurements)) {
+    return { valid: false, message: "Ogiltig backup: measurements saknas." };
+  }
+
+  const hasInvalidEntry = measurements.some((entry) => (
+    !entry ||
+    typeof entry !== "object" ||
+    typeof entry.id !== "string" ||
+    typeof entry.systolic !== "number" ||
+    typeof entry.diastolic !== "number" ||
+    typeof entry.pulse !== "number" ||
+    typeof entry.measuredAt !== "string" ||
+    !entry.classification ||
+    typeof entry.classification.key !== "string" ||
+    typeof entry.classification.label !== "string" ||
+    typeof entry.classification.text !== "string" ||
+    (entry.note !== undefined && typeof entry.note !== "string")
+  ));
+
+  if (hasInvalidEntry) {
+    return { valid: false, message: "Ogiltig backup: en eller flera mätningar är felaktiga." };
+  }
+
+  return { valid: true, measurements };
+}
+
+function importBackupFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result || "{}"));
+      const validation = validateImportedBackup(parsed);
+      if (!validation.valid) {
+        showBackupMessage(validation.message, "error");
+        return;
+      }
+
+      if (loadEntries().length > 0 && !confirm("Återställning ersätter befintliga mätningar. Vill du fortsätta?")) {
+        showBackupMessage("Återställning avbröts.", "muted");
+        return;
+      }
+
+      saveEntries(validation.measurements);
+      render();
+      showBackupMessage(`Backup återställd (${validation.measurements.length} mätningar).`, "success");
+    } catch {
+      showBackupMessage("Kunde inte läsa backupfilen. Kontrollera att det är giltig JSON.", "error");
+    } finally {
+      importBackupInput.value = "";
+    }
+  };
+  reader.onerror = () => {
+    showBackupMessage("Ett fel uppstod vid läsning av filen.", "error");
+    importBackupInput.value = "";
+  };
+  reader.readAsText(file);
 }
 
 function classifyBloodPressure(sys, dia) {
@@ -360,6 +467,13 @@ clearAllBtn.addEventListener("click", () => {
   if (!confirm("Vill du rensa alla sparade mätningar?")) return;
   saveEntries([]);
   render();
+});
+
+exportBackupBtn.addEventListener("click", exportBackup);
+
+importBackupInput.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  importBackupFile(file);
 });
 
 [systolicInput, diastolicInput].forEach((input) => {

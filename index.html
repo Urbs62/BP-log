@@ -76,6 +76,17 @@
     </section>
 
     <section class="card">
+      <h2>Backup / Restore</h2>
+      <p class="muted">Exportera eller återställ dina sparade mätningar.</p>
+      <div class="backupActions">
+        <button id="exportBackupBtn" class="secondary" type="button">Export backup</button>
+        <label class="fileInputLabel secondary" for="importBackupInput">Import backup</label>
+        <input id="importBackupInput" type="file" accept="application/json,.json" />
+      </div>
+      <p id="backupMessage" class="muted" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
       <h2>Diagram</h2>
       <p class="muted">Interaktivt diagram för övertryck, undertryck och puls.</p>
       <div id="chart" class="chart">
