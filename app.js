@@ -3,7 +3,7 @@ const REMINDER_LAST_CHECKED_KEY = "bp_log_reminder_last_checked_v1";
 const REMINDER_TIME = { hour: 16, minute: 0 };
 const REMINDER_TIME_ZONE = "Europe/Stockholm";
 // Bump this version on each deployment to trigger service worker/cache updates.
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.2.1";
 const BACKUP_SCHEMA_VERSION = 1;
 const APP_NAME = "BP Log";
 
@@ -403,7 +403,7 @@ function renderChart(entries) {
       },
       elements: {
         line: {
-          borderWidth: 3
+          borderWidth: 2
         },
         point: {
           hitRadius: 14,
