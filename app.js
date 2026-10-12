@@ -1,9 +1,10 @@
+// BP Log application
 const STORAGE_KEY = "bp_log_entries_v1";
 const REMINDER_LAST_CHECKED_KEY = "bp_log_reminder_last_checked_v1";
 const REMINDER_TIME = { hour: 16, minute: 0 };
 const REMINDER_TIME_ZONE = "Europe/Stockholm";
 // Bump this version on each deployment to trigger service worker/cache updates.
-const APP_VERSION = "1.2.2";
+const APP_VERSION = "1.2.4";
 const BACKUP_SCHEMA_VERSION = 1;
 const APP_NAME = "BP Log";
 
@@ -310,6 +311,12 @@ function renderChart(entries) {
   const minValue = Math.min(...allValues);
   const maxValue = Math.max(...allValues);
   const valueSpan = Math.max(10, maxValue - minValue);
+  const referenceLines = [
+    { value: 140, label: "Sys high 140", high: true },
+    { value: 90, label: "Dia high 90", high: true },
+    { value: 100, label: "Sys low 100", high: false },
+    { value: 60, label: "Dia low 60", high: false }
+  ];
 
   bpChart = new Chart(canvas, {
     type: "line",
@@ -390,8 +397,8 @@ function renderChart(entries) {
         y: {
           display: true,
           beginAtZero: false,
-          suggestedMin: minValue - valueSpan * 0.15,
-          suggestedMax: maxValue + valueSpan * 0.15,
+          suggestedMin: Math.min(minValue - valueSpan * 0.15, 60),
+          suggestedMax: Math.max(maxValue + valueSpan * 0.15, 140),
           ticks: {
             precision: 0,
             color: "#667085"
@@ -411,7 +418,40 @@ function renderChart(entries) {
           radius: hasFewMeasurements ? 3 : 2
         }
       }
-    }
+    },
+    plugins: [
+      {
+        id: "referenceLines",
+        afterDatasetsDraw(chart) {
+          const ctx = chart.ctx;
+          const yScale = chart.scales.y;
+          const { top, left, right } = chart.chartArea;
+          if (!yScale) return;
+
+          ctx.save();
+          ctx.fillStyle = "rgba(102, 112, 133, 0.85)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.font = "11px system-ui, sans-serif";
+          ctx.textBaseline = "middle";
+          ctx.textAlign = "right";
+
+          referenceLines.forEach((line) => {
+            const y = yScale.getPixelForValue(line.value);
+            if (y < top || y > chart.chartArea.bottom) return;
+
+            ctx.strokeStyle = line.high ? "rgba(220, 38, 38, 0.75)" : "rgba(37, 99, 235, 0.75)";
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(right, y);
+            ctx.stroke();
+            ctx.fillText(line.label, right - 6, y);
+          });
+
+          ctx.restore();
+        }
+      }
+    ]
   });
 }
 
